@@ -211,15 +211,15 @@ if __name__ == "__main__":
         if (rx_packets % 100) == 0:
             usecs = update_timer.timeus()
 
-        print(f"usecs={usecs} interval_us={interval_us}")
+        # print(f"usecs={usecs} interval_us={interval_us}")
         if args.verbose and usecs >= interval_us:
             rx_bytes_total += rx_bytes
             tock = time.time()
             elapsed_str = elapsed_time(tick,tock)
             if (args.count_column >= 0):
-                print(f"RxRate: % {rx_bytes / B1M / interval_s}MB/s (total: % {rx_bytes_total / B1M}  MB) Elapsed {elapsed_str} PktRec = {rx_packets} ErrCount = {error_count} PktsLost = {packets_lost} PER {(1.0 * packets_lost / (rx_packets + packets_lost))} \n")
+                print(f"RxRate: {rx_bytes / B1M / interval_s}MB/s (total: {rx_bytes_total / B1M}MB) Elapsed {elapsed_str} PktRec = {rx_packets} ErrCount = {error_count} PktsLost = {packets_lost} PER {(1.0 * packets_lost / (rx_packets + packets_lost))} \n")
             else:
-                print(f"Rx rate: {rx_bytes * 8.0 / (usecs / 1000000.0) / B1M} Mbps, rx % {rx_bytes / B1M / interval_s} MB/s (total: % {rx_bytes_total / B1M} MB), Elapsed {elapsed_str} , PktRec = {rx_packets} \n")
+                print(f"Rx rate: {rx_bytes * 8.0 / (usecs / 1000000.0) / B1M} Mbps, rx {rx_bytes / B1M / interval_s} MB/s (total: {rx_bytes_total / B1M} MB), Elapsed {elapsed_str} , PktRec = {rx_packets} \n")
             rx_bytes = 0
             update_timer.now()
             usecs = update_timer.timeus()
