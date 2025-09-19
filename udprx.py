@@ -1,6 +1,7 @@
 import argparse
 import socket
 import time
+import struct
 
 
 def go_realtime(sched_fifo_priority):
@@ -107,7 +108,7 @@ if __name__ == "__main__":
     """
     update_timer = time.time()
 
-    print(f"Expecting data size: {data_size}")
+    # print(f"Expecting data size: {data_size}")
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind((args.local_address, args.port))
@@ -127,10 +128,11 @@ if __name__ == "__main__":
         """
         int ReadSize = Receive.receive(buffer, BUFFERSIZE); /* cpp */
         """
+
         read_size = len(data)
 
-        assert read_size > 0
-        assert read_size == data_size
+        # assert read_size > 0
+        # assert read_size == data_size
 
         rx_bytes += read_size
         rx_packets += 1
@@ -139,50 +141,49 @@ if __name__ == "__main__":
             tick = time.time()
         tock = time.time()
 
-        print(f"received message {data}")
+        # print(f"received message {data}")
 
         if args.count_column >= 0:
             # Grab the first SPAD Count in case we're not starting from 1
             if rx_packets == 1:
-                spad_tracker = buffer + 4 * args.count_column
+                # print("rx_packets == 1")
+                offset = 4 * args.count_column
+                spad_tracker = struct.unpack_from("<I", data, offset)[0]
+                # print(f"spad_tracker = {spad_tracker}")
 
-            for i in range(0, args.spp - 1):
+            for i in range(0, args.spp):
+                # print(f"i={i}")
                 spad_index = i * args.ssb + 4 * args.count_column
+                # print(f"spad_index = {spad_index} and len(data)={len(data)}")
 
-                spad_count = buffer + spad_index
+                spad_count = struct.unpack_from("<I", data, spad_index)[0]
+                # print(f"spad_count = {spad_count}")
                 if (args.verbose and (samples + i < 5)) or deviation == True:
                     if deviation:
                         dev_or_ini = "dev"
                     else:
                         dev_or_ini = "ini"
-                    print(f"%#010x    %i %s\n", spad_count, spad_count, dev_or_ini)
+                    print(f"{spad_count:#010x} {spad_count} {dev_or_ini}")
                     deviation = False
-                if spad_tracker != spad_count:
+                if (spad_tracker) != spad_count:
+                    # print(f"spad_tracker=={spad_tracker} and spad_count={spad_count}")
                     deviation = True
                     error_count = error_count + 1
                     print(
-                        f"Deviation! Err=%i Expected=%i Received=%i "
-                        "Packets=%li PacketsSinceLast=%li "
-                        "SampleJump=%i PacketsLost=%i Bytes=%i\n",
-                        error_count,
-                        spad_tracker,
-                        spad_count,
-                        rx_packets - 1,
-                        rx_packets - 1 - rx_packets_last_error,
-                        (spad_count - spad_tracker),
-                        (spad_count - spad_tracker) / args.spp,
-                        (args.ssb * (spad_count - spad_tracker)),
+                        f"Deviation! Err={error_count} Expected={spad_tracker} Received={spad_count} "
+                        f"Packets={rx_packets-1} PacketsSinceLastError={rx_packets - 1 - rx_packets_last_error} "
+                        f"SampleJump={spad_count - spad_tracker} PacketsLost={(spad_count - spad_tracker) // args.spp} BytesLost={args.ssb * (spad_count - spad_tracker)}\n",
                     )
                     packets_lost = packets_lost + (spad_count - spad_tracker) / args.spp
                     rx_packets_last_error = rx_packets
                     spad_tracker = (
                         spad_count  # Ignore error, reinitialise tracker variable
                     )
-                    if error_count > args.maxerrs:
+                    if error_count > args.max_errs:
                         print("Maximum error count reached, quitting\n")
                         exit(0)
-                spad_tracker = spad_tracker + args.CountStep
-    samples += args.spp
+                spad_tracker = spad_tracker + args.step
+        samples += args.spp
 
     if args.output >= 0:
         print(args.outfd, read_size)
