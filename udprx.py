@@ -97,7 +97,10 @@ if __name__ == "__main__":
     data_size = args.ssb * args.spp
     rx_bytes = 0
     rx_packets = 0
-
+    deviation = False
+    error_count = 0
+    rx_packets_last_error = 0
+    packets_lost = 0
     """
     Timer UpdateTimer;
     auto USecs = UpdateTimer.timeus();
