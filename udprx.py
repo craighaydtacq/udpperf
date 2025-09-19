@@ -28,35 +28,51 @@ if __name__ == "__main__":
         prog="udprx", description="Receives UDP packets", epilog="UDP packet receiver"
     )
 
-    parser.add_argument("-p", "--port", default=UDP_PORT, help="UDP receive port")
-    parser.add_argument("-s", "--size", default=PACKET_SIZE, help="User data size")
+    parser.add_argument(
+        "-p", "--port", default=UDP_PORT, type=int, help="UDP receive port"
+    )
+    parser.add_argument(
+        "-s", "--size", default=PACKET_SIZE, type=int, help="User data size"
+    )
     parser.add_argument(
         "-b,",
         "--socket_buffer_size",
         default=SOCKET_BUFFER_SIZE,
+        type=int,
         help="socket buffer size (bytes)",
     )
-    parser.add_argument("--spp", default=1, help="Samples per packet")
-    parser.add_argument("--ssb", default=64, help="Sample size (bytes)")
+    parser.add_argument("--spp", default=1, type=int, help="Samples per packet")
+    parser.add_argument("--ssb", default=64, type=int, help="Sample size (bytes)")
     parser.add_argument(
-        "-c", "--count_column", default=-1, help="Count column (indexed from 0)"
+        "-c",
+        "--count_column",
+        default=-1,
+        type=int,
+        help="Count column (indexed from 0)",
     )
     parser.add_argument(
-        "-t", "--step", default=1, help="Count step (default:1), but may be decimated"
+        "-t",
+        "--step",
+        default=1,
+        type=int,
+        help="Count step (default:1), but may be decimated",
     )
     parser.add_argument(
-        "-R", "--rt_prio", default=0, help="set POSIX RT priority (0: no set)"
+        "-R", "--rt_prio", default=0, type=int, help="set POSIX RT priority (0: no set)"
     )
-    parser.add_argument("-o", "--output", default=-1, help="1: output data to stdout")
-    parser.add_argument("-q", "--quiet", default=0, help="1: stop reporting")
+    parser.add_argument(
+        "-o", "--output", default=-1, type=int, help="1: output data to stdout"
+    )
+    parser.add_argument("-q", "--quiet", default=0, type=int, help="1: stop reporting")
     parser.add_argument(
         "-S",
         "--max_samples",
         default=0,
+        type=int,
         help="stop after this many samples, 0: no limit",
     )
     parser.add_argument(
-        "-M", "--max_errs", default=9, help="stop after this many errors"
+        "-M", "--max_errs", default=9, type=int, help="stop after this many errors"
     )
     parser.add_argument(
         "-a",
@@ -65,7 +81,7 @@ if __name__ == "__main__":
         help="optional local address\ne.g. multiple NICs, one port",
     )
     parser.add_argument(
-        "-v", "--verbose", default=0, help="increase to get more chatty"
+        "-v", "--verbose", default=0, type=int, help="increase to get more chatty"
     )
 
     args = parser.parse_args()
