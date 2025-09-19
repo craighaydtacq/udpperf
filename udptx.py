@@ -17,14 +17,21 @@ if __name__ == "__main__":
 
     parser.add_argument("message", nargs="?", const=1, default=MESSAGE)
     parser.add_argument("-a", "--address", default=UDP_IP, help="IPv4 address to TX to")
-    parser.add_argument("-p", "--port", default=UDP_PORT, help="UDP port to TX to")
     parser.add_argument(
-        "-s", "--packet_size", default=PACKET_SIZE, help="TX packet size (bytes)"
+        "-p", "--port", default=UDP_PORT, type=int, help="UDP port to TX to"
+    )
+    parser.add_argument(
+        "-s",
+        "--packet_size",
+        default=PACKET_SIZE,
+        type=int,
+        help="TX packet size (bytes)",
     )
     parser.add_argument(
         "-b",
         "--buffer_size",
         default=SOCKET_BUFFER_SIZE,
+        type=int,
         help="socket buffer size (bytes)",
     )
     args = parser.parse_args()
@@ -41,4 +48,4 @@ if __name__ == "__main__":
 
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, args.buffer_size)
 
-    sock.sendto(message.encode("utf-8"), (args.address, int(args.port)))
+    sock.sendto(message.encode("utf-8"), (args.address, args.port))
