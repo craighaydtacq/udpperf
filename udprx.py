@@ -110,7 +110,7 @@ if __name__ == "__main__":
     print(f"Expecting data size: {data_size}")
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.bind((UDP_IP, int(args.port)))
+    sock.bind((args.local_address, args.port))
 
     if args.rt_prio:
         go_realtime(args.rt_prio)
