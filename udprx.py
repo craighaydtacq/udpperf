@@ -19,31 +19,61 @@ def go_realtime(sched_fifo_priority):
     pass
 
 
+class Timer:
+    def __init__(self):
+        # Store the initial time in nanoseconds
+        self.t1 = time.perf_counter_ns()
+
+    def now(self):
+        self.t1 = time.perf_counter_ns()
+
+    def timeus(self):
+        # Get the current time in nanoseconds
+        t2 = time.perf_counter_ns()
+        
+        # Calculate the difference and convert to microseconds
+        # 1 microsecond = 1000 nanoseconds
+        return (t2 - self.t1) // 1000
+
+def elapsed_time(t0, t1):
+    return t1 - t0
+
 if __name__ == "__main__":
     UDP_IP = "127.0.0.1"
     UDP_PORT = 53676
     PACKET_SIZE = 9000
     SOCKET_BUFFER_SIZE = 2000000
+    SAMPLES_PER_PACKET = 1
+    SAMPLE_SIZE_IN_BYTES = 64
+    MAX_ERRORS = 9
 
     parser = argparse.ArgumentParser(
         prog="udprx", description="Receives UDP packets", epilog="UDP packet receiver"
     )
 
     parser.add_argument(
-        "-p", "--port", default=UDP_PORT, type=int, help="UDP receive port"
+        "-p",
+        "--port",
+        default=UDP_PORT,
+        type=int,
+        help=f"UDP receive port (default: {UDP_PORT})",
     )
     parser.add_argument(
-        "-s", "--size", default=PACKET_SIZE, type=int, help="User data size"
+        "-s",
+        "--size",
+        default=PACKET_SIZE,
+        type=int,
+        help=f"User data size (default: {PACKET_SIZE})",
     )
     parser.add_argument(
         "-b,",
         "--socket_buffer_size",
         default=SOCKET_BUFFER_SIZE,
         type=int,
-        help="socket buffer size (bytes)",
+        help=f"socket buffer size in bytes (default: {SOCKET_BUFFER_SIZE})",
     )
-    parser.add_argument("--spp", default=1, type=int, help="Samples per packet")
-    parser.add_argument("--ssb", default=64, type=int, help="Sample size (bytes)")
+    parser.add_argument("--spp", default=SAMPLES_PER_PACKET, type=int, help=f"Samples per packet (default: {SAMPLES_PER_PACKET})")
+    parser.add_argument("--ssb", default=SAMPLE_SIZE_IN_BYTES, type=int, help=f"Sample size in bytes (default: {SAMPLE_SIZE_IN_BYTES})")
     parser.add_argument(
         "-c",
         "--count_column",
@@ -73,7 +103,11 @@ if __name__ == "__main__":
         help="stop after this many samples, 0: no limit",
     )
     parser.add_argument(
-        "-M", "--max_errs", default=9, type=int, help="stop after this many errors"
+        "-M",
+        "--max_errs",
+        default=MAX_ERRORS,
+        type=int,
+        help=f"stop after this many errors (default: {MAX_ERRORS})",
     )
     parser.add_argument(
         "-a",
@@ -88,25 +122,20 @@ if __name__ == "__main__":
     args = parser.parse_args()
     print(args)
 
-    """
-    Socket::Endpoint local(Settings.local_address, Settings.UDPPort);
-    UDPReceiver Receive(local);
-    Receive.setBufferSizes(Settings.SocketBufferSize, Settings.SocketBufferSize);
-    Receive.printBufferSizes();
-    """
-
     data_size = args.ssb * args.spp
     rx_bytes = 0
     rx_packets = 0
+    rx_bytes_total = 0
     deviation = False
     error_count = 0
     rx_packets_last_error = 0
     packets_lost = 0
-    """
-    Timer UpdateTimer;
-    auto USecs = UpdateTimer.timeus();
-    """
-    update_timer = time.time()
+    interval_us = 10000000
+    interval_s = interval_us / 1000000
+    B1M = 1000000
+
+    update_timer = Timer()
+    usecs = update_timer.timeus()
 
     # print(f"Expecting data size: {data_size}")
 
@@ -119,29 +148,19 @@ if __name__ == "__main__":
     # TODO: figure out how to make this run forever is max_samples isn't set
     samples = 0
     while True:
-        # Your condition to stop the loop
+        # Condition to stop the loop
         if args.max_samples != 0 and samples >= args.max_samples:
             print(f"Reached max samples ({samples}). Stopping.")
             break
 
         data, addr = sock.recvfrom(args.socket_buffer_size)
-        """
-        int ReadSize = Receive.receive(buffer, BUFFERSIZE); /* cpp */
-        """
 
         read_size = len(data)
-
-        # assert read_size > 0
-        # assert read_size == data_size
 
         rx_bytes += read_size
         rx_packets += 1
         if rx_packets == 1:
-            # tick = time(0) /* cpp */
             tick = time.time()
-        tock = time.time()
-
-        # print(f"received message {data}")
 
         if args.count_column >= 0:
             # Grab the first SPAD Count in case we're not starting from 1
@@ -157,13 +176,14 @@ if __name__ == "__main__":
                 # print(f"spad_index = {spad_index} and len(data)={len(data)}")
 
                 spad_count = struct.unpack_from("<I", data, spad_index)[0]
+                # print(f"spad_index={spad_index}")
                 # print(f"spad_count = {spad_count}")
-                if (args.verbose and (samples + i < 5)) or deviation == True:
+                if (args.verbose and (samples + i < args.spp+1)) or deviation == True:
                     if deviation:
                         dev_or_ini = "dev"
                     else:
                         dev_or_ini = "ini"
-                    print(f"{spad_count:#010x} {spad_count} {dev_or_ini}")
+                    print(f"{spad_count:010x} {spad_count} {dev_or_ini}")
                     deviation = False
                 if (spad_tracker) != spad_count:
                     # print(f"spad_tracker=={spad_tracker} and spad_count={spad_count}")
@@ -176,17 +196,30 @@ if __name__ == "__main__":
                     )
                     packets_lost = packets_lost + (spad_count - spad_tracker) / args.spp
                     rx_packets_last_error = rx_packets
-                    spad_tracker = (
-                        spad_count  # Ignore error, reinitialise tracker variable
-                    )
+                    spad_tracker = spad_count  # Ignore error, reinitialise tracker variable
                     if error_count > args.max_errs:
                         print("Maximum error count reached, quitting\n")
                         exit(0)
                 spad_tracker = spad_tracker + args.step
         samples += args.spp
 
-    if args.output >= 0:
-        print(args.outfd, read_size)
+        if args.output >= 0:
+            raise NotImplementedError(
+                "Outputting to stdout from this program is not yet implemented"
+            )
 
-    if (rx_packets % 100) == 0:
-        update_timer = time.time()
+        if (rx_packets % 100) == 0:
+            usecs = update_timer.timeus()
+
+        print(f"usecs={usecs} interval_us={interval_us}")
+        if args.verbose and usecs >= interval_us:
+            rx_bytes_total += rx_bytes
+            tock = time.time()
+            elapsed_str = elapsed_time(tick,tock)
+            if (args.count_column >= 0):
+                print(f"RxRate: % {rx_bytes / B1M / interval_s} PRIu64  MB/s (total: % {rx_bytes_total / B1M}  MB) Elapsed {elapsed_str} %s PktRec = {rx_packets} %i ErrCount = {err_count} %i PktsLost = {pkts_lost} %i PER {(1.0 * pkts_lost / (rx_packets + pkts_lost))} %4.3e \n")
+            else:
+                print(f"Rx rate: {rx_bytes * 8.0 / (usecs / 1000000.0) / B1M} %.2f Mbps, rx % {rx_bytes / B1M / interval_s} PRIu64  MB/s (total: % {rx_bytes_total / B1M} PRIu64  MB), Elapsed {elapsed_str} %s, PktRec = {rx_packets} %i\n")
+            rx_bytes = 0
+            update_timer.now()
+            usecs = update_timer.timeus()
