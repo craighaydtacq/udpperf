@@ -25,3 +25,28 @@ On one host
 On another host
 
     > ./udptx
+
+
+
+# Windows compilation
+You need to have installed the Visual Studio C++ Build Tools.
+
+They can be found on this page:
+https://visualstudio.microsoft.com/downloads/
+
+Or a direct link to installer:
+
+https://aka.ms/vs/17/release/vs_BuildTools.exe
+
+Only the basic installation is required, no additional features (they can be unticked during the installation process).
+
+Once installed, open a "Developer Command Prompt for VS 2022" from the Start Menu, navigate to the udpperf directory and run this command:
+
+```
+cl /std:c++17 /I. /EHsc udprx.cpp common\Socket.cpp common\Timer.cpp ws2_32.lib /Feudprx.exe
+```
+
+To compile the companion TX program run:
+```
+cl /std:c++17 /I. /EHsc udptx.cpp common\Socket.cpp common\Timer.cpp ws2_32.lib /Feudptx.exe
+```
