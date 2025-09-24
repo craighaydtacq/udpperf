@@ -1,10 +1,21 @@
 /** Copyright (C) 2016 European Spallation Source */
 
+
+#ifdef _WIN32
+// Windows specific headers
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#pragma comment(lib, "ws2_32.lib")
+#else
+// POSIX headers
+#include <netdb.h>
+#endif
+
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
 #include <common/Socket.h>
-#include <netdb.h>
+
 
 /// \brief Use MSG_SIGNAL on Linuxes
 #ifdef MSG_NOSIGNAL
@@ -61,7 +72,8 @@ void Socket::printBufferSizes(void) {
 }
 
 void Socket::checkRxBufferSizes(std::int32_t MinRxBufferSize) {
-  int __attribute__((unused)) TxBufferSize;
+  // int __attribute__((unused)) TxBufferSize;  // gcc specific
+  int [[maybe_unused]] TxBufferSize;  // modern C++17
   int RxBufferSize;
   getBufferSizes(TxBufferSize, RxBufferSize);
   if (RxBufferSize < MinRxBufferSize) {
@@ -72,10 +84,17 @@ void Socket::checkRxBufferSizes(std::int32_t MinRxBufferSize) {
 }
 
 int Socket::setRecvTimeout(int seconds, int usecs) {
-  struct timeval timeout;
-  timeout.tv_sec = seconds;
-  timeout.tv_usec = usecs;
-  return setSockOpt(SO_RCVTIMEO, &timeout, sizeof(timeout));
+
+  #ifdef _WIN32
+    DWORD timeout = seconds * 1000 + usecs / 1000;
+    return setsockopt(SocketFileDescriptor, SOL_SOCKET, SO_RCVTIMEO,
+    reinterpret_cast<const char*>(&timeout), sizeof(timeout));
+  #else
+    struct timeval timeout;
+    timeout.tv_sec = seconds;
+    timeout.tv_usec = usecs;
+    return setSockOpt(SO_RCVTIMEO, &timeout, sizeof(timeout));
+  #endif
 }
 
 int Socket::setNOSIGPIPE() {
@@ -101,7 +120,7 @@ void Socket::setLocalSocket(const std::string ipaddr, int port) {
   localSockAddr.sin_family = AF_INET;
   localSockAddr.sin_port = htons(port);
 
-  int ret = inet_aton(ipaddr.c_str(), &localSockAddr.sin_addr);
+  int ret = inet_pton(AF_INET, ipaddr.c_str(), &localSockAddr.sin_addr);
   if (ret == 0) {
     throw std::runtime_error("setLocalSocket() - invalid ip address");
   }
@@ -121,7 +140,7 @@ void Socket::setRemoteSocket(const std::string ipaddr, int port) {
   remoteSockAddr.sin_family = AF_INET;
   remoteSockAddr.sin_port = htons(port);
 
-  int ret = inet_aton(ipaddr.c_str(), &remoteSockAddr.sin_addr);
+  int ret = inet_pton(AF_INET, ipaddr.c_str(), &remoteSockAddr.sin_addr);
   if (ret == 0) {
     throw std::runtime_error("RemoteSocket(): invalid ip address");
   }
@@ -133,7 +152,7 @@ int Socket::connectToRemote() {
   std::memset((char *)&remoteSockAddr, 0, sizeof(remoteSockAddr));
   remoteSockAddr.sin_family = AF_INET;
   remoteSockAddr.sin_port = htons(RemotePort);
-  int ret = inet_aton(RemoteIp.c_str(), &remoteSockAddr.sin_addr);
+  int ret = inet_pton(AF_INET, RemoteIp.c_str(), &remoteSockAddr.sin_addr);
   if (ret == 0) {
     //LOG(IPC, Sev::Error, "invalid ip address {}", RemoteIp);
     throw std::runtime_error("connectToRemote() - invalid ip");
@@ -150,7 +169,7 @@ int Socket::connectToRemote() {
 int Socket::send(void const *buffer, int len) {
   //XTRACE(IPC, DEB, "Socket::send(), length %d bytes", len);
   int ret =
-      sendto(SocketFileDescriptor, buffer, len, SEND_FLAGS, (struct sockaddr *)&remoteSockAddr, sizeof(remoteSockAddr));
+      sendto(SocketFileDescriptor, static_cast<const char*>(buffer), len, SEND_FLAGS, (struct sockaddr *)&remoteSockAddr, sizeof(remoteSockAddr));
   if (ret < 0) {
     SocketFileDescriptor = -1;
     //XTRACE(IPC, DEB, "sendto() failed with code %d", ret);
@@ -161,9 +180,13 @@ int Socket::send(void const *buffer, int len) {
 
 /** */
 ssize_t Socket::receive(void *buffer, int buflen) {
-  socklen_t slen = 0;
+  #ifdef _WIN32
+    int slen = sizeof(remoteSockAddr);
+  #else
+    socklen_t slen = 0; // this might be a bug and maybe should be sizeof(remoteSockAddr)
+  #endif
   // try to receive some data, this is a blocking call
-  return recvfrom(SocketFileDescriptor, buffer, buflen, 0, (struct sockaddr *)&remoteSockAddr, &slen);
+  return recvfrom(SocketFileDescriptor, static_cast<char*>(buffer), buflen, 0, (struct sockaddr *)&remoteSockAddr, &slen);
 }
 
 //
@@ -173,9 +196,14 @@ ssize_t Socket::receive(void *buffer, int buflen) {
 int Socket::getSockOpt(int option) {
   //XTRACE(IPC, DEB, "getSockOpt(%d), fd %d", option, SocketFileDescriptor);
   int optval, ret;
-  socklen_t optlen;
+  #ifdef _WIN32
+    int optlen;
+  #else
+    socklen_t optlen;
+  #endif
+
   optlen = sizeof(optval);
-  if ((ret = getsockopt(SocketFileDescriptor, SOL_SOCKET, option, (void *)&optval, &optlen)) <
+  if ((ret = getsockopt(SocketFileDescriptor, SOL_SOCKET, option, reinterpret_cast<char*>(&optval), &optlen)) <
       0) {
     //XTRACE(IPC, WAR, "getSockOpt(%d) failed, fd %d, ret %d", option, SocketFileDescriptor, ret);
     return ret;
@@ -185,7 +213,7 @@ int Socket::getSockOpt(int option) {
 
 int Socket::setSockOpt(int option, void *value, int size) {
   int ret;
-  if ((ret = setsockopt(SocketFileDescriptor, SOL_SOCKET, option, value, size)) < 0) {
+  if ((ret = setsockopt(SocketFileDescriptor, SOL_SOCKET, option, static_cast<const char*>(value), size)) < 0) {
     std::cout << "setsockopt() failed" << std::endl;
   }
   return ret;

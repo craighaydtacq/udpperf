@@ -9,11 +9,21 @@
 
 #pragma once
 
-#include <arpa/inet.h>
-#include <cassert>
-#include <cinttypes>
-#include <sys/socket.h>
-#include <netinet/ip.h>
+#ifdef _WIN32
+    #include <winsock2.h>
+    #include <ws2tcpip.h>
+    #pragma comment(lib, "ws2_32.lib") // link with the winsock library
+    #include <cassert>
+    #include <cinttypes>
+    #include <BaseTsd.h>
+    typedef SSIZE_T ssize_t;
+#else
+    #include <arpa/inet.h>
+    #include <cassert>
+    #include <cinttypes>
+    #include <sys/socket.h>
+    #include <netinet/ip.h>
+#endif
 
 /// BSD Socket abstractions for TCP and UDP transmitters and receivers
 class Socket {
