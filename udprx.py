@@ -140,6 +140,16 @@ if __name__ == "__main__":
     # print(f"Expecting data size: {data_size}")
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+    og_buffer_size = sock.getsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF)
+    print(f"Requested socket buffer: {args.socket_buffer_size}, OG: {og_buffer_size}")
+
+    # Set the buffer size
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, args.socket_buffer_size)
+
+    actual_buffer_size = sock.getsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF)
+    print(f"Requested socket buffer: {args.socket_buffer_size}, Actual: {actual_buffer_size}")
+
     sock.bind((args.local_address, args.port))
 
     if args.rt_prio:
