@@ -8,7 +8,12 @@
 #include <common/TSCTimer.h>
 #include <common/Timer.h>
 #include <stdio.h>
-#include <unistd.h>
+
+#ifdef _WIN32
+
+#else
+  #include <unistd.h>
+#endif
 
 #define TSC_MHZ 3000
 
