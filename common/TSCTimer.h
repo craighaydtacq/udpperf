@@ -10,10 +10,18 @@
 
 #include <cstdint>
 
-static __inline__ unsigned long long rdtsc(void) {
-  unsigned hi, lo;
+#ifdef _MSC_VER
+#include <intrin.h>
+#endif
+
+static inline unsigned long long rdtsc(void) {
+  #ifdef _MSC_VER
+    return __rdtsc();
+  #else
+    unsigned hi, lo;
   __asm__ __volatile__("rdtsc" : "=a"(lo), "=d"(hi));
   return ((unsigned long long)lo) | (((unsigned long long)hi) << 32);
+  #endif
 }
 
 class TSCTimer {
