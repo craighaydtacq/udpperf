@@ -29,9 +29,9 @@ CLI::App app{"UDP transmitter with 32 bit sequence number."};
 char Buffer[10000];
 
 int main(int argc, char *argv[]) {
-  app.add_option("-p, --port", Settings.UDPPort, "UDP transmit port");
-  app.add_option("-d, --data_size", Settings.DataSize, "Size of UDP payload (bytes)");
-  app.add_option("-b, --socket_buffer_size", Settings.SocketBufferSize, "socket buffer size (bytes)");
+  app.add_option("-p, --port", Settings.UDPPort, "UDP transmit port")->capture_default_str();
+  app.add_option("-d, --data_size", Settings.DataSize, "Size of UDP payload (bytes)")->capture_default_str();
+  app.add_option("-b, --socket_buffer_size", Settings.SocketBufferSize, "socket buffer size (bytes)")->capture_default_str();
   CLI11_PARSE(app, argc, argv);
 
   uint64_t TxBytesTotal{0};
@@ -48,6 +48,16 @@ int main(int argc, char *argv[]) {
   Timer RateTimer;
   TSCTimer ReportTimer;
   uint32_t SeqNo{1};
+
+  // Print the config as a string (can also be used to save the config to a file)
+  std::cout << "--- Configuration from arguments ---" << std::endl;
+  std::string config_string = app.config_to_str();
+  std::cout << config_string << std::endl;
+
+  // Print the config to a string with any default arguments included
+  std::cout << "--- Configuration from defaults ---" << std::endl;
+  std::string full_config_string = app.config_to_str(true, true);
+  std::cout << full_config_string << std::endl;
 
   for (;;) {
     *((uint32_t *)Buffer) = SeqNo;
