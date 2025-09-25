@@ -68,6 +68,7 @@ int main(int argc, char *argv[]) {
   app.add_option("-p, --port", Settings.UDPPort, "UDP transmit port")->capture_default_str();
   app.add_option("-d, --data_size", Settings.DataSize, "Size of UDP payload (bytes)")->capture_default_str();
   app.add_option("-b, --socket_buffer_size", Settings.SocketBufferSize, "socket buffer size (bytes)")->capture_default_str();
+  app.add_option("-a, --address", Settings.IpAddress, "IP to send to")->capture_default_str();
   CLI11_PARSE(app, argc, argv);
 
   uint64_t TxBytesTotal{0};
