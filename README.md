@@ -50,3 +50,22 @@ To compile the companion TX program run:
 ```
 cl /std:c++17 /I. /EHsc udptx.cpp common\Socket.cpp common\Timer.cpp ws2_32.lib /Feudptx.exe
 ```
+
+# Saving data to a file
+To save data to a file supply the `-f` or `--filename` flag to `updrx` followed by the desired filename.
+
+For a quick test of this functionality try in two separate terminals:
+
+```
+\udprx.exe --ssb 64 --spp 1 -S 64 -f test_result.bin
+```
+
+```
+.\udptx.exe -d 64
+```
+
+Then inspect the `test_result.bin` file and you should see a packet counter incrementing, where each packet is 16 longwords (64 bytes) long.
+The file should be 4KB in size (64 samples of 64 bytes each).
+The packets should be all zeros except the incrementing counter.
+
+

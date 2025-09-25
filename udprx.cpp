@@ -44,6 +44,7 @@ struct {
   uint64_t maxsamples{0};
   std::string local_address{"0.0.0.0"};
   int verbose{0};
+  std::string filename;
 } Settings;
   
 void fmtElapsedTime(char *str, int tick, int tock) {
@@ -86,7 +87,9 @@ int main(int argc, char *argv[]) {
     app.add_option("-S, --max_samples", Settings.maxsamples, "stop after this many samples, 0: no limit")->capture_default_str();
     app.add_option("-M, --max_errs", Settings.maxerrs, "stop after this many errors")->capture_default_str();
     app.add_option("-a, --local_address", Settings.local_address, "optional local address\neg multiple NICs, one port")->capture_default_str();
-    app.add_option("-v, --verbose", Settings.verbose, "increase to get more chatty")->capture_default_str();    CLI11_PARSE(app, argc, argv);
+    app.add_option("-v, --verbose", Settings.verbose, "increase to get more chatty")->capture_default_str();
+    app.add_option("-f, --filename", Settings.filename, "supply a filename to write output to. If not supplied will not write to a file.")->capture_default_str();
+    CLI11_PARSE(app, argc, argv);
 
     static const int BUFFERSIZE{9200};
     char buffer[BUFFERSIZE];
@@ -106,6 +109,8 @@ int main(int argc, char *argv[]) {
     time_t tick{0};
     time_t tock{0};
     bool deviation = false;
+
+    std::ofstream output_file;
 
     if (Settings.RtPrio){
         goRealTime(Settings.RtPrio);
@@ -131,6 +136,15 @@ int main(int argc, char *argv[]) {
     std::string full_config_string = app.config_to_str(true, true);
     std::cout << full_config_string << std::endl;
 
+    if (!Settings.filename.empty()) {
+        output_file.open(Settings.filename, std::ios::binary);
+
+        if (!output_file.is_open()) {
+            std::cerr << "Error: Could not open output file: "
+                      << Settings.filename << std::endl;
+            return 1;
+        }
+    }
 
     for (uint64_t samples = 0;
          Settings.maxsamples == 0 || samples < Settings.maxsamples;
@@ -192,6 +206,11 @@ int main(int argc, char *argv[]) {
                 SpadTracker = SpadTracker + Settings.CountStep;
             }
         }
+
+        if (output_file.is_open()) {
+            output_file.write(buffer, ReadSize);
+        }
+
         if (Settings.outfd >= 0){
             #ifdef _WIN32
               // TODO: implement on windows
