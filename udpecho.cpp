@@ -39,7 +39,7 @@ struct {
   int CountStep{1};
   int RtPrio{0};
   int outfd{-1};
-  int quiet{0};
+  int quiet{1};
   int maxerrs{9};
   uint64_t maxsamples{0};
   std::string local_address{"0.0.0.0"};
