@@ -29,6 +29,16 @@ CLI::App app{"UDP transmitter with 32 bit sequence number."};
 char Buffer[10000];
 
 int main(int argc, char *argv[]) {
+  #ifdef _WIN32
+    // Must initialize winsock
+    WSADATA wsaData;
+    int iResult = WSAStartup(MAKEWORD(2,2), &wsaData);
+    if (iResult != 0) {
+      printf("WSAStartup failed: %d\n", iResult);
+      return 1;
+    }
+  #endif
+
   app.add_option("-p, --port", Settings.UDPPort, "UDP transmit port")->capture_default_str();
   app.add_option("-d, --data_size", Settings.DataSize, "Size of UDP payload (bytes)")->capture_default_str();
   app.add_option("-b, --socket_buffer_size", Settings.SocketBufferSize, "socket buffer size (bytes)")->capture_default_str();
@@ -44,6 +54,7 @@ int main(int argc, char *argv[]) {
   UDPTransmitter UDPTx(Local, Remote);
   UDPTx.setBufferSizes(Settings.SocketBufferSize, Settings.SocketBufferSize);
   UDPTx.printBufferSizes();
+
 
   Timer RateTimer;
   TSCTimer ReportTimer;
@@ -81,4 +92,9 @@ int main(int argc, char *argv[]) {
       ReportTimer.now();
     }
   }
+
+  #ifdef _WIN32
+    // clean up winsock
+    WSACleanup();
+  #endif
 }
