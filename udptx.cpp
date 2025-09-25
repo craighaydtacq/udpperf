@@ -8,6 +8,9 @@
 #include <common/TSCTimer.h>
 #include <common/Timer.h>
 #include <stdio.h>
+#include <chrono>
+#include <thread>
+
 
 #ifdef _WIN32
 
@@ -15,7 +18,6 @@
   #include <unistd.h>
 #endif
 
-#define TSC_MHZ 3000
 
 struct {
   std::string IpAddress{"127.0.0.1"};
@@ -28,7 +30,31 @@ CLI::App app{"UDP transmitter with 32 bit sequence number."};
 
 char Buffer[10000];
 
+
+// Assumes you have an rdtsc() function available
+// This function should be called once at the start of your program.
+uint64_t get_tsc_freq() {
+    auto start = std::chrono::high_resolution_clock::now();
+    uint64_t tsc_start = rdtsc();
+
+    // Sleep for a fixed, known duration
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+    uint64_t tsc_end = rdtsc();
+    auto end = std::chrono::high_resolution_clock::now();
+
+    uint64_t tsc_delta = tsc_end - tsc_start;
+    double time_delta_s = std::chrono::duration<double>(end - start).count();
+
+    return static_cast<uint64_t>(tsc_delta / time_delta_s);
+}
+
+
 int main(int argc, char *argv[]) {
+
+    uint64_t tsc_freq_hz = get_tsc_freq();
+    const uint64_t reporting_interval_ticks = tsc_freq_hz; // For a 1-second interval
+
   #ifdef _WIN32
     // Must initialize winsock
     WSADATA wsaData;
@@ -80,12 +106,15 @@ int main(int argc, char *argv[]) {
       TxBytes += TxTmpBytes;
     }
 
-    if (ReportTimer.timetsc() >= 1000000UL * TSC_MHZ) {
+    if (ReportTimer.timetsc() >= reporting_interval_ticks) {
       auto USecs = RateTimer.timeus();
       TxBytesTotal += TxBytes;
       printf("Tx rate: %f Mbps, %f pps, tx %llu MB (total: %llu MB) %llu usecs\n",
-             TxBytes * 8.0 / USecs, TxPackets * 1000000.0 / USecs, TxBytes / B1M,
-             TxBytesTotal / B1M, USecs);
+             TxBytes * 8.0 / USecs,
+             TxPackets * 1000000.0 / USecs,
+             TxBytes / B1M,
+             TxBytesTotal / B1M,
+             USecs);
       TxBytes = 0;
       TxPackets = 0;
       RateTimer.now();
